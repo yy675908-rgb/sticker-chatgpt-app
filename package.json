@@ -1,0 +1,22 @@
+{
+  "name": "sticker-chatgpt-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A private ChatGPT Sticker library built with the Apps SDK and MCP.",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node scripts/check.mjs",
+    "test:mcp": "node scripts/integration.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "^1.0.1",
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "zod": "^3.24.4"
+  }
+}
