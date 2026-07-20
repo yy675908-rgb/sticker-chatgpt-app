@@ -8,4 +8,12 @@ services:
       - key: STICKER_ACCESS_KEY
         sync: false
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: sticker-chatgpt-db
+          property: connectionString
+
+databases:
+  - name: sticker-chatgpt-db
+    plan: free
+    databaseName: stickers
+    user: sticker_app
