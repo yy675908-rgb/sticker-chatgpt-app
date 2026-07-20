@@ -18,7 +18,7 @@
 ## 本地运行
 
 ```bash
-npm ci
+npm install
 npm run check
 npm run test:mcp
 STICKER_ACCESS_KEY=换成至少12位的随机字符 npm start
