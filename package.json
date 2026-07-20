@@ -1,6 +1,6 @@
 {
   "name": "sticker-chatgpt-app",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "A private ChatGPT Sticker library built with the Apps SDK and MCP.",
@@ -15,6 +15,7 @@
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "^1.0.1",
     "@modelcontextprotocol/sdk": "^1.12.1",
+    "@neondatabase/serverless": "^1.0.2",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "zod": "^3.24.4"
