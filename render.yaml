@@ -2,14 +2,10 @@ services:
   - type: web
     name: sticker-chatgpt-app
     runtime: docker
-    plan: starter
+    plan: free
     healthCheckPath: /
     envVars:
-      - key: DATA_DIR
-        value: /var/data
       - key: STICKER_ACCESS_KEY
         sync: false
-    disk:
-      name: sticker-data
-      mountPath: /var/data
-      sizeGB: 1
+      - key: DATABASE_URL
+        sync: false
