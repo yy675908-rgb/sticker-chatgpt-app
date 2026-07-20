@@ -5,7 +5,7 @@ import {
 } from "@modelcontextprotocol/ext-apps/server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { neon } from "@neondatabase/serverless";
+import pg from "pg";
 import cors from "cors";
 import express from "express";
 import fs from "node:fs";
@@ -31,35 +31,43 @@ if (accessKey && !/^[A-Za-z0-9_-]{12,128}$/.test(accessKey)) {
 const mcpPath = accessKey ? `/mcp/${accessKey}` : "/mcp";
 
 const databaseUrl = process.env.DATABASE_URL?.trim() || "";
-const sql = databaseUrl ? neon(databaseUrl) : null;
+const { Pool } = pg;
+let pool = null;
+if (databaseUrl) {
+  const host = new URL(databaseUrl).hostname;
+  const needsSsl = /neon\.tech$|supabase\.(com|co)$|pooler\./i.test(host);
+  pool = new Pool({
+    connectionString: databaseUrl,
+    ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
+    max: 5,
+  });
+}
 let schemaReady;
 
 const dataDir = process.env.DATA_DIR || path.join(__dirname, "data");
 const dataFile = path.join(dataDir, "stickers.json");
-if (!sql) fs.mkdirSync(dataDir, { recursive: true });
+if (!pool) fs.mkdirSync(dataDir, { recursive: true });
 
 async function ensureSchema() {
-  if (!sql) return;
-  schemaReady ||= sql`
+  if (!pool) return;
+  schemaReady ||= pool.query(`
     CREATE TABLE IF NOT EXISTS sticker_state (
       id TEXT PRIMARY KEY,
       data JSONB NOT NULL,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
-  `;
+  `);
   await schemaReady;
 }
 
 async function readDatabase() {
-  if (sql) {
+  if (pool) {
     await ensureSchema();
-    const rows = await sql`
-      SELECT data
-      FROM sticker_state
-      WHERE id = 'global'
-      LIMIT 1
-    `;
-    const data = rows[0]?.data;
+    const result = await pool.query(
+      "SELECT data FROM sticker_state WHERE id = $1 LIMIT 1",
+      ["global"],
+    );
+    const data = result.rows[0]?.data;
     return data && typeof data === "object" ? data : { users: {} };
   }
 
@@ -75,15 +83,15 @@ async function readDatabase() {
 }
 
 async function writeDatabase(database) {
-  if (sql) {
+  if (pool) {
     await ensureSchema();
-    const payload = JSON.stringify(database);
-    await sql`
-      INSERT INTO sticker_state (id, data, updated_at)
-      VALUES ('global', ${payload}::jsonb, NOW())
-      ON CONFLICT (id)
-      DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
-    `;
+    await pool.query(
+      `INSERT INTO sticker_state (id, data, updated_at)
+       VALUES ($1, $2::jsonb, NOW())
+       ON CONFLICT (id)
+       DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()`,
+      ["global", JSON.stringify(database)],
+    );
     return;
   }
 
@@ -387,7 +395,7 @@ app.use(express.json({ limit: "2mb" }));
 
 app.get("/", (_req, res) => {
   res.type("text/plain").send(
-    `Sticker MCP server is running (${sql ? "Neon" : "local file"} storage).`,
+    `Sticker MCP server is running (${pool ? "Postgres" : "local file"} storage).`,
   );
 });
 
@@ -420,7 +428,7 @@ app.all(mcpPath, async (req, res) => {
 app.listen(port, "0.0.0.0", () => {
   console.log(
     `Sticker MCP server listening on port ${port} with ${
-      sql ? "Neon" : "local file"
+      pool ? "Postgres" : "local file"
     } storage.`,
   );
 });
