@@ -34,6 +34,8 @@ http://localhost:8000/mcp/你的STICKER_ACCESS_KEY
 
 ## 部署
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/yy675908-rgb/sticker-chatgpt-app)
+
 仓库内含 `Dockerfile` 和 `render.yaml`。Render 方案使用带 1 GB 持久化磁盘的 `starter` 实例；创建 Blueprint 时填写 `STICKER_ACCESS_KEY`。最终连接地址类似：
 
 ```text
