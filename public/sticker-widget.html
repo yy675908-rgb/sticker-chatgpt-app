@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sticker</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f7f7f5;
+      --card: rgba(255,255,255,.86);
+      --text: #20201e;
+      --muted: #7a7974;
+      --line: rgba(30,30,28,.10);
+      --accent: #242421;
+      --soft: rgba(30,30,28,.06);
+      --danger: #b43c3c;
+      --radius: 18px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #161615;
+        --card: rgba(36,36,34,.88);
+        --text: #f3f2ec;
+        --muted: #aaa8a0;
+        --line: rgba(255,255,255,.10);
+        --accent: #f2f0e8;
+        --soft: rgba(255,255,255,.07);
+        --danger: #ff8d8d;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    .app { min-height: 360px; padding: 14px; }
+    .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .brand { font-weight: 760; font-size: 18px; letter-spacing: -.02em; margin-right: auto; }
+    .count { color: var(--muted); font-size: 12px; }
+    .icon-btn, .primary, .ghost { border: 0; border-radius: 12px; cursor: pointer; transition: transform .12s ease, background .12s ease; }
+    .icon-btn:active, .primary:active, .ghost:active { transform: scale(.97); }
+    .icon-btn { width: 38px; height: 38px; background: var(--soft); display: grid; place-items: center; font-size: 18px; }
+    .primary { padding: 10px 14px; background: var(--accent); color: var(--bg); font-weight: 700; }
+    .ghost { padding: 9px 12px; background: var(--soft); }
+    .toolbar { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 9px; margin-bottom: 12px; }
+    .search { width: 100%; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 13px; padding: 10px 12px; outline: none; }
+    .search:focus { border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+    .tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
+    .tab { white-space: nowrap; border: 0; border-radius: 999px; padding: 7px 11px; background: var(--soft); color: var(--muted); cursor: pointer; }
+    .tab.active { background: var(--accent); color: var(--bg); }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+    @media (min-width: 520px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    .sticker { position: relative; min-height: 106px; border: 1px solid var(--line); background: var(--card); border-radius: var(--radius); overflow: hidden; cursor: pointer; }
+    .sticker img { width: 100%; aspect-ratio: 1; object-fit: contain; display: block; background: var(--soft); }
+    .sticker .caption { padding: 7px 8px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 12px; }
+    .fav { position: absolute; right: 6px; top: 6px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: rgba(20,20,18,.56); color: white; cursor: pointer; backdrop-filter: blur(6px); }
+    .empty { min-height: 250px; display: grid; place-items: center; text-align: center; border: 1px dashed var(--line); border-radius: 22px; color: var(--muted); padding: 24px; }
+    .empty .mark { font-size: 38px; margin-bottom: 8px; }
+    .empty strong { color: var(--text); display: block; margin-bottom: 4px; }
+    .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.30); display: none; align-items: end; justify-content: center; padding: 12px; z-index: 20; }
+    .sheet-backdrop.open { display: flex; }
+    .sheet { width: min(560px,100%); background: var(--bg); border: 1px solid var(--line); border-radius: 24px; padding: 16px; box-shadow: 0 20px 70px rgba(0,0,0,.25); }
+    .sheet h2 { margin: 0 0 12px; font-size: 18px; }
+    .preview { display: grid; place-items: center; min-height: 150px; border-radius: 18px; background: var(--soft); overflow: hidden; margin-bottom: 12px; }
+    .preview img { max-width: 100%; max-height: 240px; object-fit: contain; }
+    .field { margin: 10px 0; }
+    .field label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 5px; }
+    .field input { width: 100%; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 12px; padding: 10px 11px; outline: none; }
+    .actions { display: flex; gap: 8px; margin-top: 14px; }
+    .actions .primary { flex: 1; }
+    .danger { color: var(--danger); }
+    .status { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%) translateY(20px); opacity: 0; pointer-events: none; background: var(--accent); color: var(--bg); border-radius: 999px; padding: 9px 13px; transition: .18s ease; z-index: 40; white-space: nowrap; }
+    .status.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="topbar">
+      <div class="brand">Sticker</div>
+      <div class="count" id="count">0 张</div>
+      <button class="icon-btn" id="libraryBtn" aria-label="从文件库选择" title="从文件库选择">▧</button>
+      <button class="primary" id="uploadBtn">＋ 添加</button>
+      <input class="hidden" id="fileInput" type="file" accept="image/*" multiple />
+    </div>
+    <div class="toolbar">
+      <input class="search" id="search" placeholder="搜索标题或标签" />
+      <button class="ghost" id="fullscreenBtn" title="全屏">全屏</button>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-filter="all">全部</button>
+      <button class="tab" data-filter="favorite">收藏</button>
+    </div>
+    <section class="grid" id="grid"></section>
+    <section class="empty" id="empty">
+      <div>
+        <div class="mark">◌</div>
+        <strong>表情库还是空的</strong>
+        <div>点“添加”存入自己的图片。</div>
+      </div>
+    </section>
+  </main>
+
+  <div class="sheet-backdrop" id="sheetBackdrop">
+    <section class="sheet" role="dialog" aria-modal="true">
+      <h2 id="sheetTitle">表情包</h2>
+      <div class="preview"><img id="sheetImage" alt="" /></div>
+      <div class="field">
+        <label for="titleInput">名称</label>
+        <input id="titleInput" maxlength="80" placeholder="可不填" />
+      </div>
+      <div class="field">
+        <label for="tagsInput">标签（用逗号分隔）</label>
+        <input id="tagsInput" placeholder="例如：无语, 生气, 猫猫" />
+      </div>
+      <div class="actions">
+        <button class="ghost danger" id="deleteBtn">删除</button>
+        <button class="ghost" id="closeBtn">取消</button>
+        <button class="ghost" id="saveBtn">保存</button>
+        <button class="primary" id="sendBtn">发送</button>
+      </div>
+    </section>
+  </div>
+  <div class="status" id="status"></div>
+
+  <script>
+    const $ = (selector) => document.querySelector(selector);
+    const state = {
+      stickers: Array.isArray(window.openai?.toolOutput?.stickers) ? window.openai.toolOutput.stickers : [],
+      filter: window.openai?.widgetState?.privateContent?.filter || "all",
+      query: window.openai?.widgetState?.privateContent?.query || "",
+      selected: null,
+      urls: new Map(),
+    };
+
+    const els = {
+      grid: $("#grid"), empty: $("#empty"), count: $("#count"), search: $("#search"),
+      fileInput: $("#fileInput"), uploadBtn: $("#uploadBtn"), libraryBtn: $("#libraryBtn"),
+      fullscreenBtn: $("#fullscreenBtn"), sheetBackdrop: $("#sheetBackdrop"), sheetImage: $("#sheetImage"),
+      sheetTitle: $("#sheetTitle"), titleInput: $("#titleInput"), tagsInput: $("#tagsInput"),
+      deleteBtn: $("#deleteBtn"), closeBtn: $("#closeBtn"), saveBtn: $("#saveBtn"), sendBtn: $("#sendBtn"),
+      status: $("#status"),
+    };
+
+    els.search.value = state.query;
+
+    function toast(message) {
+      els.status.textContent = message;
+      els.status.classList.add("show");
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => els.status.classList.remove("show"), 1500);
+    }
+
+    function persistUi(extra = {}) {
+      if (!window.openai?.setWidgetState) return;
+      window.openai.setWidgetState({
+        modelContent: "用户正在浏览自己的 Sticker 表情库。",
+        privateContent: { filter: state.filter, query: state.query, ...extra },
+        imageIds: extra.imageIds || [],
+      });
+    }
+
+    async function imageUrl(fileId) {
+      if (state.urls.has(fileId)) return state.urls.get(fileId);
+      if (!window.openai?.getFileDownloadUrl) return "";
+      try {
+        const result = await window.openai.getFileDownloadUrl({ fileId });
+        const url = result?.downloadUrl || "";
+        state.urls.set(fileId, url);
+        return url;
+      } catch {
+        return "";
+      }
+    }
+
+    function filtered() {
+      const q = state.query.trim().toLowerCase();
+      return state.stickers.filter((sticker) => {
+        if (state.filter === "favorite" && !sticker.favorite) return false;
+        if (!q) return true;
+        return [sticker.title, sticker.fileName, ...(sticker.tags || [])].join(" ").toLowerCase().includes(q);
+      });
+    }
+
+    async function render() {
+      const rows = filtered();
+      els.count.textContent = `${state.stickers.length} 张`;
+      els.grid.innerHTML = "";
+      els.empty.classList.toggle("hidden", rows.length > 0 || state.stickers.length > 0);
+      if (!rows.length && state.stickers.length) {
+        els.empty.classList.remove("hidden");
+        els.empty.innerHTML = '<div><div class="mark">⌕</div><strong>没找到</strong><div>换个关键词试试。</div></div>';
+      } else if (!state.stickers.length) {
+        els.empty.innerHTML = '<div><div class="mark">◌</div><strong>表情库还是空的</strong><div>点“添加”存入自己的图片。</div></div>';
+      }
+      for (const sticker of rows) {
+        const card = document.createElement("article");
+        card.className = "sticker";
+        const img = document.createElement("img");
+        img.alt = sticker.title || sticker.fileName || "Sticker";
+        img.src = await imageUrl(sticker.fileId);
+        const fav = document.createElement("button");
+        fav.className = "fav";
+        fav.textContent = sticker.favorite ? "♥" : "♡";
+        fav.title = sticker.favorite ? "取消收藏" : "收藏";
+        fav.addEventListener("click", async (event) => {
+          event.stopPropagation();
+          await mutate("toggle_sticker_favorite", { id: sticker.id });
+        });
+        const caption = document.createElement("div");
+        caption.className = "caption";
+        caption.textContent = sticker.title || sticker.tags?.[0] || sticker.fileName || "未命名";
+        card.append(img, fav, caption);
+        card.addEventListener("click", () => openSheet(sticker));
+        els.grid.appendChild(card);
+      }
+    }
+
+    function parseTags(value) {
+      return [...new Set(value.split(/[，,]/).map((item) => item.trim()).filter(Boolean))].slice(0, 20);
+    }
+
+    async function mutate(tool, args) {
+      if (!window.openai?.callTool) {
+        toast("当前环境不支持工具调用");
+        return null;
+      }
+      try {
+        const result = await window.openai.callTool(tool, args);
+        const output = result?.structuredContent || result?.structured_content || result;
+        if (Array.isArray(output?.stickers)) state.stickers = output.stickers;
+        await render();
+        return result;
+      } catch (error) {
+        console.error(error);
+        toast("操作失败");
+        return null;
+      }
+    }
+
+    async function addFiles(files) {
+      if (!window.openai?.uploadFile) {
+        toast("当前环境不支持上传");
+        return;
+      }
+      for (const file of files) {
+        if (!file.type.startsWith("image/")) continue;
+        toast("正在添加…");
+        try {
+          const { fileId } = await window.openai.uploadFile(file, { library: true });
+          await mutate("save_sticker", {
+            fileId,
+            fileName: file.name,
+            mimeType: file.type,
+            title: file.name.replace(/\.[^.]+$/, ""),
+            tags: [],
+          });
+        } catch (error) {
+          console.error(error);
+          toast("添加失败");
+        }
+      }
+      toast("已添加");
+    }
+
+    async function addFromLibrary() {
+      if (!window.openai?.selectFiles) {
+        toast("这里暂时没有文件库选择器");
+        return;
+      }
+      try {
+        const files = await window.openai.selectFiles();
+        for (const file of files || []) {
+          if (file.mimeType && !file.mimeType.startsWith("image/")) continue;
+          await mutate("save_sticker", {
+            fileId: file.fileId,
+            fileName: file.fileName || "sticker",
+            mimeType: file.mimeType || "image/*",
+            title: (file.fileName || "").replace(/\.[^.]+$/, ""),
+            tags: [],
+          });
+        }
+        if (files?.length) toast("已加入表情库");
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    async function openSheet(sticker) {
+      state.selected = sticker;
+      els.sheetTitle.textContent = sticker.title || "表情包";
+      els.titleInput.value = sticker.title || "";
+      els.tagsInput.value = (sticker.tags || []).join(", ");
+      els.sheetImage.src = await imageUrl(sticker.fileId);
+      els.sheetBackdrop.classList.add("open");
+    }
+
+    function closeSheet() {
+      els.sheetBackdrop.classList.remove("open");
+      state.selected = null;
+    }
+
+    async function saveSelected() {
+      if (!state.selected) return;
+      await mutate("update_sticker", {
+        id: state.selected.id,
+        title: els.titleInput.value,
+        tags: parseTags(els.tagsInput.value),
+      });
+      toast("已保存");
+      closeSheet();
+    }
+
+    async function sendSelected() {
+      if (!state.selected || !window.openai?.sendFollowUpMessage) {
+        toast("当前环境不能发送");
+        return;
+      }
+      persistUi({
+        selectedStickerId: state.selected.id,
+        selectedFileId: state.selected.fileId,
+        imageIds: [state.selected.fileId],
+      });
+      await window.openai.sendFollowUpMessage({
+        prompt: "直接发送我刚刚选中的这张表情包，不要解释，也不要加文字。",
+        scrollToBottom: true,
+      });
+      closeSheet();
+    }
+
+    els.uploadBtn.addEventListener("click", () => els.fileInput.click());
+    els.fileInput.addEventListener("change", async () => {
+      await addFiles([...els.fileInput.files]);
+      els.fileInput.value = "";
+    });
+    els.libraryBtn.addEventListener("click", addFromLibrary);
+    els.fullscreenBtn.addEventListener("click", async () => {
+      try { await window.openai?.requestDisplayMode?.({ mode: "fullscreen" }); } catch {}
+    });
+    els.search.addEventListener("input", () => {
+      state.query = els.search.value;
+      persistUi();
+      render();
+    });
+    document.querySelectorAll(".tab").forEach((tab) => {
+      tab.classList.toggle("active", tab.dataset.filter === state.filter);
+      tab.addEventListener("click", () => {
+        state.filter = tab.dataset.filter;
+        document.querySelectorAll(".tab").forEach((item) => item.classList.toggle("active", item === tab));
+        persistUi();
+        render();
+      });
+    });
+    els.closeBtn.addEventListener("click", closeSheet);
+    els.sheetBackdrop.addEventListener("click", (event) => { if (event.target === els.sheetBackdrop) closeSheet(); });
+    els.saveBtn.addEventListener("click", saveSelected);
+    els.sendBtn.addEventListener("click", sendSelected);
+    els.deleteBtn.addEventListener("click", async () => {
+      if (!state.selected || !confirm("只从 Sticker 表情库移除，不会删除 ChatGPT 文件库里的原图。继续？")) return;
+      await mutate("delete_sticker", { id: state.selected.id });
+      closeSheet();
+      toast("已移除");
+    });
+
+    window.addEventListener("openai:set_globals", (event) => {
+      const output = event?.detail?.globals?.toolOutput;
+      if (Array.isArray(output?.stickers)) {
+        state.stickers = output.stickers;
+        render();
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>
